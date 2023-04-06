@@ -1,0 +1,67 @@
+---
+title: "biostat-200c-HW1-AC"
+author: "Andrew Chuang"
+format:
+  html:
+    theme: cosmo
+    number-sections: true
+    toc: true
+    toc-depth: 4
+    toc-location: left
+    code-fold: false
+knitr:
+  opts_chunk: 
+    cache: false    
+    echo: true
+    fig.align: 'center'
+    fig.width: 6
+    fig.height: 4
+    message: FALSE
+editor: visual
+---
+
+## BIOSTAT 200C HW1 - Andrew Chuang
+
+Session information for reproducibility purposes.
+```{r}
+sessionInfo()
+```
+
+### Libraries
+
+```{r}
+library(tidyverse)
+library(faraway)
+```
+### Q1: Review of linear models
+
+An initial data analysis that explores the numerical and graphical characteristics of the data.
+        
+An initial data analysis that explores the numerical and graphical 
+characteristics of the data. I use the `summary` function in order to take a
+first look at the basic numerical characteristics of the dataset.
+```{r}
+summary(swiss)
+```
+
+Variable selection to choose the best model.
+
+An exploration of transformations to improve the fit of the model.
+
+Diagnostics to check the assumptions of your model.
+
+Some predictions of future observations for interesting values of the predictors.
+
+An interpretation of the meaning of the model by writing a scientific abstract. (<150 words)
+
+    BACKGROUND: brief intro of the study background, what are the existing findings
+
+    OBJECTIVE: state the overall purpose of your research, e.g., what kind of knowledge gap you are trying to fill in
+
+    METHODS: study design (how these data were collected), outcome definitions, statistical procedures used
+
+    RESULTS: summary of major findings to address the question raised in objective
+
+    CONCLUSIONS:
+    
+    
