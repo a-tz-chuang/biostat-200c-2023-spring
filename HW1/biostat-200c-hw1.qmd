@@ -32,27 +32,104 @@ sessionInfo()
 ```{r}
 library(tidyverse)
 library(faraway)
+library(corrplot)
+library(gtsummary)
 ```
 ### Q1: Review of linear models
 
-An initial data analysis that explores the numerical and graphical characteristics of the data.
+Converting the swiss dataset into a tibble for use with other tidyverse 
+functions. From the summary, we find that there are 47 observations with
+6 variables. 
+```{r}
+swiss_df <- swiss %>% 
+  as_tibble() %>%
+  print(width = Inf)
+```
+An initial data analysis that explores the numerical and graphical 
+characteristics of the data.
         
 An initial data analysis that explores the numerical and graphical 
 characteristics of the data. I use the `summary` function in order to take a
-first look at the basic numerical characteristics of the dataset.
+first look at the basic numerical characteristics of the dataset. All variables
+in the dataset are numeric variables and there are no missing values.
 ```{r}
-summary(swiss)
+summary(swiss_df)
+```
+```{r}
+cor(swiss_df)
 ```
 
-Variable selection to choose the best model.
+```{r}
+for (var in c("Agriculture", "Examination", "Education", 
+              "Catholic", "Infant.Mortality")) {
+  plot <- ggplot(data = swiss_df) + 
+    geom_histogram(mapping = aes(x = get(var))) +
+    xlab(var)
+  print(plot)
+}
+```
 
+```{r}
+for (var in c("Agriculture", "Examination", "Education", 
+              "Catholic", "Infant.Mortality")) {
+  plot <- ggplot(data = swiss_df) + 
+    geom_point(mapping = aes(x = get(var), y = Fertility)) +
+    geom_smooth(mapping = aes(x = get(var), y = Fertility)) +
+    xlab(var)
+  print(plot)
+}
+```
+
+Correlation plot exploring the correlation between Fertility and different
+variables in the swiss dataset.
+```{r}
+corrplot(cor(swiss_df), type = "upper", order = "hclust", 
+         tl.col = "black", tl.srt = 45)
+```
+
+Variable selection to choose the best model. Below, I first fit a model with 
+all variables in the dataframe and the interactions between the variables. 
+I then use the `step` function to pick out the model with the lowest AIC score
+for variable selection purposes.
+```{r}
+biglm <- lm(Fertility ~ (Agriculture + Examination + Catholic + Infant.Mortality)^2, 
+            data = swiss_df)
+summary(biglm)
+```
+```{r}
+smallm <- step(biglm, trace = TRUE)
+```
+
+After using the AIC selection criteria, I use the `drop1` function to conduct
+F-tests and assess the statistical significance of the variables in the model.
+The Agriculture:Infant.Mortality, Examination:Catholic, 
+Examination:Infant.Mortality, and Catholic:Infant.Morality variables are all
+statistically significant. 
+```{r}
+drop1(smallm, test = "F")
+```
+
+```{r}
+finalm <- lm(Fertility ~ Agriculture*Infant.Mortality + Examination*Catholic + 
+               Examination*Infant.Mortality + Catholic*Infant.Mortality, 
+             data = swiss_df)
+summary(finalm)
+```
 An exploration of transformations to improve the fit of the model.
+```{r}
+termplot(finalm, partial.resid = TRUE)
+```
 
 Diagnostics to check the assumptions of your model.
+```{r}
+plot(finalm)
+```
 
-Some predictions of future observations for interesting values of the predictors.
+Some predictions of future observations for interesting values of the 
+predictors.
 
-An interpretation of the meaning of the model by writing a scientific abstract. (<150 words)
+An interpretation of the meaning of the model by writing a scientific abstract. 
+(<150 words)
 
     BACKGROUND: brief intro of the study background, what are the existing findings
 
@@ -64,4 +141,145 @@ An interpretation of the meaning of the model by writing a scientific abstract. 
 
     CONCLUSIONS:
     
-    
+# Q2: Concavity of logistic regression log-likelihood
+
+## Q2.1: Write down the log-likelihood function of logistic regresion for binomial responses.
+
+$$
+\begin{eqnarray*}
+\ell(\boldsymbol{\beta}) &=& \sum_i \log \left[p_i^{y_i} (1 -
+p_i)^{1 - y_i}\right] \\
+&=& \sum_i \left[ y_i \log p_i + (1 - y_i) \log (1 - p_i)
+\right] \\
+&=& \sum_i \left[ y_i \log \frac{e^{\eta_i}}{1 + e^{\eta_i}} +
+(1 - y_i) \log \frac{1}{1 + e^{\eta_i}}  \right] \\
+&=& \sum_i \left[ y_i \eta_i - \log (1 + e^{\eta_i}) \right] \\
+&=& \sum_i \left[ y_i \cdot \mathbf{x}_i^T \boldsymbol{\beta} -
+\log (1 + e^{\mathbf{x}_i^T \boldsymbol{\beta}}) \right].
+\end{eqnarray*}
+$$
+
+## Q2.2: Derive the gradient vector and Hessian matrix of the log-likelhood function with respect to the regression coefficients β
+
+
+## Q2.3: Show that the log-likelihood function of logistic regression is a concave function in regression coefficients β. (Hint: show that the negative Hessian is a positive semidefinite matrix.)
+
+# Q3: `pima` Dataset
+
+## Q3.1: Create factor version of the test results.
+```{r}
+pima_df <- pima %>% as_tibble() %>% 
+  mutate(test_factor = as.factor(test)) %>% 
+  print(width = Inf)
+```
+
+```{r}
+pima_df %>% ggplot(mapping = aes(x = insulin)) +
+  geom_histogram(aes(fill = test_factor)) +
+  ggtitle('Insulin Distribution by Test Result')
+```
+
+There are an extremely high number of individuals who have a 0 level of 
+insulin in our dataset. I think that these 0s are more likely to be missing 
+values, because it is impossible for humans to survive without any insulin.
+
+## Q3.2: Replace the zero values of insulin with the missing value code NA.
+```{r}
+pima_df <- pima_df %>% mutate(insulin = ifelse(insulin == 0, NA, insulin)) %>% 
+  print(width = Inf)
+```
+
+```{r}
+pima_df %>% ggplot(mapping = aes(x = insulin)) +
+  geom_histogram(aes(fill = test_factor)) +
+  ggtitle('Insulin Distribution by Test Result')
+```
+The two distributions of insulin look much more believable, with a slightly 
+positively skewed distribution for both test statuses. There are still a few
+readings for both positive and negative tests that are very extreme (over 600).
+
+## Q3.3: Replace the incredible zeroes in other variables with the missing value code.
+
+I replaced glucose, diastolic, triceps, insulin, bmi, diabetes, and age with 
+`NA` if their value was equal to zero. However, I left pregnant the same because
+it is plausible that an individual could have never given birth.
+```{r}
+pima_df_nas <- pima_df %>%  
+  mutate(glucose = ifelse(glucose == 0, NA, glucose),
+             diastolic = ifelse(diastolic == 0, NA, diastolic),
+             triceps = ifelse(triceps == 0, NA, triceps),
+             bmi = ifelse(bmi == 0, NA, bmi),
+             diabetes = ifelse(diabetes == 0, NA, diabetes),
+             age = ifelse(age == 0, NA, age)) %>% 
+  print(width = Inf)
+```
+
+Below, I fit the logistic regression using test result as the outcome variable.
+```{r}
+lmod <- glm(test_factor ~ insulin + glucose2 + diastolic2 + triceps2 + bmi2 + diabetes2 + age2 + pregnant, 
+            family = binomial, 
+            data = na.omit(pima_df_nas))
+summary(lmod)
+```
+
+392 observations were used in fitting this logistic regression model. The 
+model drops observations that have any missing values in the variables that
+are used in the design matrix of the model. Therefore, the observations used
+in the model fitting will be less than the number of observations in the total
+dataset.
+
+## Q3.4: Refit the model but now without the insulin and triceps predictors.
+```{r}
+lmod2 <- glm(test_factor ~ glucose2 + diastolic2 + bmi2 + diabetes2 + age2 + pregnant, 
+             family = binomial, 
+             data = na.omit(pima_df_nas))
+summary(lmod2)
+```
+
+```{r}
+anova(lmod2, lmod, test = 'Chi')
+```
+
+Following the lab, I use an ANOVA test to compare the truncated (without insulin
+and triceps) and full models. The p-value is 0.65, which is higher than the 
+standard critical value of 0.05. This results suggests that the addition of
+insulin and triceps does not improve model fit.
+
+## Q3.5 Use AIC to select a model. 
+
+You will need to take account of the missing values. Which predictors are selected? How many cases are used in your selected model?
+
+```{r}
+stats::step(lmod, trace = TRUE, direction = "back") %>%
+  tbl_regression() %>%
+  bold_labels()
+```
+
+```{r}
+lmod3 <- glm(test_factor ~ glucose2 + bmi2 + diabetes2 + age2 + pregnant,
+             family = binomial, 
+             data = pima_df_nas)
+summary(lmod3)
+```
+
+## Q3.6: Create a variable that indicates whether the case contains a missing value.  
+```{r}
+pima_df_6 <- pima_df_nas %>% 
+  mutate(na_status = as.numeric(rowSums(is.na(.)) > 0)) %>% 
+  print(width = Inf)
+```
+
+```{r}
+lmod4 <- glm(test_factor ~ glucose + bmi + diabetes + age + pregnant + as.factor(na_status),
+             family = binomial, 
+             data = pima_df_6)
+summary(lmod4)
+```
+
+We captured whether the observation has any missing values in the na_status
+variable. The p-value associated with that variable is 0.056, which is close
+but above the standard critical value of 0.05. Therefore, the variable is not
+statistically significant at the 0.05 level. 
+
+When we use missingness of the observation as a variable in our model in 
+addition to the other variables that 
